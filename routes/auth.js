@@ -15,14 +15,17 @@ router.post('/createuser', [
 
 ], async (req, res) => {
     const errors = validationResult(req);
+    let success = false;
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ success, errors: errors.array() });
     }
 
     try {
         let user = await User.findOne({ email: req.body.email });
         if (user) {
-            return res.status(400).json({ errors: [{ msg: 'User already exists' }] });
+            return res.status(400).json({ success, errors: [{ msg: 'User already exists' }] });
+        } else {
+            success = true;
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -41,10 +44,10 @@ router.post('/createuser', [
         }
         // const JWT_SECRET = process.env.JWT_SECRET;
         const authToken = jwt.sign(data, JWT_SECRET);
-        res.json({ authToken });
+        res.json({ success, authToken });
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.status(500).send(success, "Internal Server Error");
     }
 });
 
@@ -54,44 +57,48 @@ router.post('/login', [
     body('password', 'password can not be empty').notEmpty()
 ], async (req, res) => {
     const errors = validationResult(req);
+    let success = false;
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({ success, errors: errors.array() });
     }
 
     const { email, password } = req.body; //De-structuring
     try {
         let user = await User.findOne({ email: email });
         if (!user) {
-            return res.status(400).json({ errors: "Please enter valid credentials." });
+            return res.status(400).json({ success, errors: "Please enter valid credentials." });
         }
 
         const passwordCompare = await bcrypt.compare(password, user.password);
         if (!passwordCompare) {
-            return res.status(400).json({ errors: "Please enter valid credentials." });
+            return res.status(400).json({ success, errors: "Please enter valid credentials." });
+        } else {
+            success = true;
         }
 
         const data = {
             user: user.id
         }
         const authToken = jwt.sign(data, JWT_SECRET);
-        res.send({ authToken });
+        res.send({ success, authToken });
 
     } catch (err) {
         console.error(err);
-        res.status(500).send("Internal Server Error");
+        res.status(500).send(success, "Internal Server Error");
     }
 
 });
 
 //Router-3, Get user details using post "/api/auth/user" Login required
 router.post('/getuser', fetchuser, async (req, res) => {
+    let success = false;
     try {
         const userId = req.user;
         const user = await User.findById(userId).select("-password");
-        res.json({ user });
+        res.json({ success, user });
     } catch (error) {
         console.error(error);
-        res.status(500).send("Internal Server Error");
+        res.status(500).send(success, "Internal Server Error");
     }
 });
 
